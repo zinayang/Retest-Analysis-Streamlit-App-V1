@@ -518,39 +518,103 @@ def run_streamlit_app():
         len(qc_h_over20_df) > 0
     ) else pd.DataFrame()
     # ==========================
-    result_df = pd.concat(all_results, ignore_index=True) if all_results else pd.DataFrame()
-
-    over20_df = pd.concat(all_over20, ignore_index=True) if all_over20 else pd.DataFrame()
-
+    # 无法分析数据汇总
+    # ==========================
     invalid_df = pd.concat(all_invalid, ignore_index=True) if all_invalid else pd.DataFrame()
 
     # ==========================
-    # 统计
+    # 分别统计（样本/QC-L/QC-H）
     # ==========================
-    stats = calculate_statistics(result_df, over20_df)
+    sample_stats = calculate_statistics(sample_result_df, sample_over20_df)
+    qc_l_stats = calculate_statistics(qc_l_result_df, qc_l_over20_df)
+    qc_h_stats = calculate_statistics(qc_h_result_df, qc_h_over20_df)
 
+    # ==========================
+    # 页面统计展示
+    # ==========================
     st.divider()
     st.header("📊 统计结果")
 
     col1, col2, col3 = st.columns(3)
 
     col1.metric(
-        "异常样本占比",
-        f"{stats['异常样本占比']}%"
+        "样本异常占比",
+        f"{sample_stats['异常样本占比']}%"
     )
 
     col2.metric(
-        "异常记录占比",
-        f"{stats['异常记录占比']}%"
+        "QC-L异常占比",
+        f"{qc_l_stats['异常样本占比']}%"
     )
 
     col3.metric(
-        "异常样本数",
-        stats['异常样本数']
+        "QC-H异常占比",
+        f"{qc_h_stats['异常样本占比']}%"
     )
 
     # ==========================
-    # 异常数据表
+    # 样本异常结果
+    # ==========================
+    st.divider()
+    st.header("🚨 样本偏差超过20%")
+
+    if len(sample_over20_df) > 0:
+
+        st.dataframe(
+            sample_over20_df,
+            use_container_width=True
+        )
+
+    else:
+        st.success("未发现样本偏差超过20%")
+
+    # ==========================
+    # QC-L异常结果
+    # ==========================
+    st.divider()
+    st.header("🧪 QC-L偏差超过20%")
+
+    if len(qc_l_over20_df) > 0:
+
+        st.dataframe(
+            qc_l_over20_df,
+            use_container_width=True
+        )
+
+    else:
+        st.success("未发现QC-L偏差超过20%")
+
+    # ==========================
+    # QC-H异常结果
+    # ==========================
+    st.divider()
+    st.header("🧪 QC-H偏差超过20%")
+
+    if len(qc_h_over20_df) > 0:
+
+        st.dataframe(
+            qc_h_over20_df,
+            use_container_width=True
+        )
+
+    else:
+        st.success("未发现QC-H偏差超过20%")
+
+    # ==========================
+    # 全部异常结果
+    # ==========================
+    over20_df = pd.concat([
+        sample_over20_df,
+        qc_l_over20_df,
+        qc_h_over20_df
+    ], ignore_index=True) if (
+        len(sample_over20_df) > 0 or
+        len(qc_l_over20_df) > 0 or
+        len(qc_h_over20_df) > 0
+    ) else pd.DataFrame()
+
+    st.divider()
+    st.header("📋 全部异常汇总")
     # ==========================
     st.divider()
     st.header("🚨 偏差超过20%的数据")
@@ -588,18 +652,54 @@ def run_streamlit_app():
 
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
 
-        result_df.to_excel(
+        # ==========================
+        # 样本结果
+        # ==========================
+        sample_result_df.to_excel(
             writer,
-            sheet_name='全部复测分析',
+            sheet_name='样本全部分析',
             index=False
         )
 
-        over20_df.to_excel(
+        sample_over20_df.to_excel(
             writer,
-            sheet_name='偏差超过20%',
+            sheet_name='样本超20%',
             index=False
         )
 
+        # ==========================
+        # QC-L结果
+        # ==========================
+        qc_l_result_df.to_excel(
+            writer,
+            sheet_name='QC-L全部分析',
+            index=False
+        )
+
+        qc_l_over20_df.to_excel(
+            writer,
+            sheet_name='QC-L超20%',
+            index=False
+        )
+
+        # ==========================
+        # QC-H结果
+        # ==========================
+        qc_h_result_df.to_excel(
+            writer,
+            sheet_name='QC-H全部分析',
+            index=False
+        )
+
+        qc_h_over20_df.to_excel(
+            writer,
+            sheet_name='QC-H超20%',
+            index=False
+        )
+
+        # ==========================
+        # 无法分析数据
+        # ==========================
         invalid_df.to_excel(
             writer,
             sheet_name='无法分析数据',
@@ -607,15 +707,12 @@ def run_streamlit_app():
         )
 
         # ==========================
-        # 设置Excel格式
+        # Excel格式修复
         # ==========================
-        workbook = writer.book
+        for current_sheet in writer.sheets:
 
-        for sheet_name in writer.sheets:
+            worksheet = writer.sheets[current_sheet]
 
-            worksheet = writer.sheets[sheet_name]
-
-            # 项目ID列使用常规格式
             for col in worksheet.iter_cols():
 
                 header = col[0].value
