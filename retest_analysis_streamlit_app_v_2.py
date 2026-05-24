@@ -286,32 +286,71 @@ def analyze_data(df, data_type="样本"):
 # ======================================
 def calculate_statistics(result_df, over20_df):
 
-    if result_df is None or len(result_df) == 0:
-        return {
-            "总复测记录数": 0,
-            "异常记录数": 0,
-            "异常记录占比": 0,
-            "总复测样本数": 0,
-            "异常样本数": 0,
-            "异常样本占比": 0
-        }
+    # ==========================
+    # 空结果保护
+    # ==========================
+    if result_df is None:
+        result_df = pd.DataFrame()
 
+    if over20_df is None:
+        over20_df = pd.DataFrame()
+
+    # ==========================
+    # 总复测记录数
+    # ==========================
     total_records = len(result_df)
+
+    # ==========================
+    # 异常记录数
+    # ==========================
     abnormal_records = len(over20_df)
 
-    record_ratio = round(
-        abnormal_records / total_records * 100,
-        2
-    ) if total_records > 0 else 0
+    # ==========================
+    # 异常记录占比
+    # ==========================
+    if total_records == 0:
+        record_ratio = 0
+    else:
+        record_ratio = round(
+            abnormal_records / total_records * 100,
+            2
+        )
 
-    total_samples = result_df["样本ID"].nunique()
+    # ==========================
+    # 总复测样本数
+    # ==========================
+    if (
+        len(result_df) == 0 or
+        "样本ID" not in result_df.columns
+    ):
+        total_samples = 0
 
-    abnormal_samples = over20_df["样本ID"].nunique()
+    else:
+        total_samples = result_df["样本ID"].nunique()
 
-    sample_ratio = round(
-        abnormal_samples / total_samples * 100,
-        2
-    ) if total_samples > 0 else 0
+    # ==========================
+    # 异常样本数
+    # ==========================
+    if (
+        len(over20_df) == 0 or
+        "样本ID" not in over20_df.columns
+    ):
+        abnormal_samples = 0
+
+    else:
+        abnormal_samples = over20_df["样本ID"].nunique()
+
+    # ==========================
+    # 异常样本占比
+    # ==========================
+    if total_samples == 0:
+        sample_ratio = 0
+
+    else:
+        sample_ratio = round(
+            abnormal_samples / total_samples * 100,
+            2
+        )
 
     return {
         "总复测记录数": total_records,
@@ -321,7 +360,6 @@ def calculate_statistics(result_df, over20_df):
         "异常样本数": abnormal_samples,
         "异常样本占比": sample_ratio
     }
-
 
 # ======================================
 # 测试函数
